@@ -8,25 +8,45 @@ import { Badge } from "@/components/ui/badge";
 const TagsPage = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [tagCounts, setTagCounts] = useState<Record<string, number>>({});
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    const allTags = getAllTags();
-    const links = getFilteredLinks();
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        const allTags = await getAllTags();
+        const links = await getFilteredLinks();
+        
+        const counts: Record<string, number> = {};
+        allTags.forEach(tag => {
+          counts[tag] = links.filter(link => link.tags.includes(tag)).length;
+        });
+        
+        setTags(allTags);
+        setTagCounts(counts);
+      } catch (error) {
+        console.error("Error fetching tags data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    const counts: Record<string, number> = {};
-    allTags.forEach(tag => {
-      counts[tag] = links.filter(link => link.tags.includes(tag)).length;
-    });
-    
-    setTags(allTags);
-    setTagCounts(counts);
+    fetchData();
   }, []);
   
   return (
     <div className="container max-w-7xl mx-auto py-8">
       <h1 className="text-2xl font-bold mb-6">Browse by Tags</h1>
       
-      {tags.length > 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, index) => (
+            <Card key={index} className="p-4 animate-pulse">
+              <div className="h-8 bg-muted rounded"></div>
+            </Card>
+          ))}
+        </div>
+      ) : tags.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tags.map(tag => (
             <Link key={tag} to={`/?tag=${tag}`}>
