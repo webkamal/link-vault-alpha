@@ -2,9 +2,10 @@
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
-import { CURRENT_USER } from "@/types";
 import { addComment } from "@/services/linksService";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { Link } from "react-router-dom";
 
 interface CommentFormProps {
   linkId: string;
@@ -14,8 +15,9 @@ interface CommentFormProps {
 const CommentForm = ({ linkId, onCommentAdded }: CommentFormProps) => {
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, authState } = useAuth();
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!text.trim()) {
@@ -23,11 +25,14 @@ const CommentForm = ({ linkId, onCommentAdded }: CommentFormProps) => {
       return;
     }
     
+    if (!user) {
+      toast.error("You must be logged in to comment");
+      return;
+    }
+    
     setIsSubmitting(true);
     
-    const newComment = addComment(linkId, {
-      userId: CURRENT_USER.id,
-      username: CURRENT_USER.username,
+    const newComment = await addComment(linkId, {
       text: text.trim(),
     });
     
@@ -41,6 +46,26 @@ const CommentForm = ({ linkId, onCommentAdded }: CommentFormProps) => {
     
     setIsSubmitting(false);
   };
+  
+  if (authState === 'LOADING') {
+    return (
+      <div className="space-y-3 mb-6 animate-pulse">
+        <div className="h-24 bg-muted rounded-md"></div>
+        <div className="h-10 w-24 bg-muted rounded-md ml-auto"></div>
+      </div>
+    );
+  }
+  
+  if (authState === 'SIGNED_OUT') {
+    return (
+      <div className="space-y-3 mb-6 border p-4 rounded-md text-center">
+        <p className="text-muted-foreground">You need to be logged in to comment</p>
+        <Button asChild>
+          <Link to="/auth">Login / Sign Up</Link>
+        </Button>
+      </div>
+    );
+  }
   
   return (
     <form onSubmit={handleSubmit} className="space-y-3 mb-6">

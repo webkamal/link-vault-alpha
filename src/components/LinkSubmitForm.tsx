@@ -5,12 +5,13 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { addLink } from "@/services/linksService";
-import { CURRENT_USER } from "@/types";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LinkSubmitForm = () => {
   const navigate = useNavigate();
+  const { user, authState } = useAuth();
   const [formData, setFormData] = useState({
     title: "",
     url: "",
@@ -23,7 +24,7 @@ const LinkSubmitForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Basic validation
@@ -45,6 +46,11 @@ const LinkSubmitForm = () => {
       return;
     }
     
+    if (!user) {
+      toast.error("You must be logged in to submit a link");
+      return;
+    }
+    
     setIsSubmitting(true);
     
     // Process tags
@@ -54,11 +60,9 @@ const LinkSubmitForm = () => {
       .filter(tag => tag.length > 0);
     
     // Add link
-    const newLink = addLink({
+    const newLink = await addLink({
       title: formData.title.trim(),
       url: formData.url.trim(),
-      userId: CURRENT_USER.id,
-      username: CURRENT_USER.username,
       tags: tags.length > 0 ? tags : ["uncategorized"]
     });
     
@@ -73,6 +77,41 @@ const LinkSubmitForm = () => {
   };
   
   const isFormValid = formData.title.trim() && formData.url.trim();
+  
+  if (authState === 'LOADING') {
+    return (
+      <Card className="p-6 max-w-xl mx-auto animate-pulse">
+        <div className="space-y-6">
+          <div className="h-8 bg-muted rounded-md w-1/2 mx-auto"></div>
+          <div className="space-y-2">
+            <div className="h-5 bg-muted rounded-md w-20"></div>
+            <div className="h-10 bg-muted rounded-md"></div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-5 bg-muted rounded-md w-16"></div>
+            <div className="h-10 bg-muted rounded-md"></div>
+          </div>
+          <div className="space-y-2">
+            <div className="h-5 bg-muted rounded-md w-24"></div>
+            <div className="h-10 bg-muted rounded-md"></div>
+          </div>
+          <div className="h-10 bg-muted rounded-md"></div>
+        </div>
+      </Card>
+    );
+  }
+  
+  if (authState === 'SIGNED_OUT') {
+    return (
+      <Card className="p-6 max-w-xl mx-auto text-center">
+        <h2 className="text-2xl font-bold mb-6">Submit a New Link</h2>
+        <p className="text-muted-foreground mb-6">You need to be logged in to submit links</p>
+        <Button asChild className="mx-auto">
+          <RouterLink to="/auth">Login / Sign Up</RouterLink>
+        </Button>
+      </Card>
+    );
+  }
   
   return (
     <Card className="p-6 max-w-xl mx-auto">

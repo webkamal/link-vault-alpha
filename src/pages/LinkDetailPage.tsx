@@ -1,29 +1,49 @@
 
 import { useState, useEffect } from "react";
-import { useParams, Link as RouterLink } from "react-router-dom";
-import { getLinkById } from "@/services/linksService";
+import { useParams, Link as RouterLink, useNavigate } from "react-router-dom";
+import { getLinkById, deleteLink } from "@/services/linksService";
 import { Link } from "@/types";
 import LinkItem from "@/components/LinkItem";
 import CommentItem from "@/components/CommentItem";
 import CommentForm from "@/components/CommentForm";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const LinkDetailPage = () => {
   const { id = "" } = useParams();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [link, setLink] = useState<Link | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    setIsLoading(true);
-    const fetchedLink = getLinkById(id);
-    setLink(fetchedLink || null);
-    setIsLoading(false);
+    const fetchLink = async () => {
+      setIsLoading(true);
+      const fetchedLink = await getLinkById(id);
+      setLink(fetchedLink || null);
+      setIsLoading(false);
+    };
+    
+    fetchLink();
   }, [id]);
   
-  const refreshLink = () => {
-    const updatedLink = getLinkById(id);
+  const refreshLink = async () => {
+    const updatedLink = await getLinkById(id);
     setLink(updatedLink || null);
+  };
+  
+  const handleDelete = async () => {
+    const success = await deleteLink(id);
+    
+    if (success) {
+      toast.success("Link deleted successfully");
+      queryClient.invalidateQueries();
+      navigate("/");
+    } else {
+      toast.error("Failed to delete link");
+    }
   };
   
   if (isLoading) {
@@ -65,7 +85,12 @@ const LinkDetailPage = () => {
           </RouterLink>
         </div>
         
-        <LinkItem link={link} onVoteChange={refreshLink} />
+        <LinkItem 
+          link={link} 
+          onVoteChange={refreshLink} 
+          onDelete={handleDelete}
+          onEdit={refreshLink}
+        />
         
         <div className="mt-8">
           <h2 className="text-xl font-bold mb-6">

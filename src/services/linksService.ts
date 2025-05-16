@@ -1,211 +1,487 @@
 
-import { Link, Comment } from "../types";
-
-// Initial data
-const initialLinks: Link[] = [
-  {
-    id: "1",
-    title: "Hacker News",
-    url: "https://news.ycombinator.com/",
-    votes: 125,
-    userId: "user1",
-    username: "johnsmith",
-    createdAt: new Date(Date.now() - 3 * 3600000).toISOString(),
-    comments: [
-      {
-        id: "c1",
-        linkId: "1",
-        userId: "user2",
-        username: "janesmith",
-        text: "This is the original inspiration for our app!",
-        createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-      }
-    ],
-    tags: ["tech", "news"]
-  },
-  {
-    id: "2",
-    title: "Lovable.dev - AI Powered Web Development",
-    url: "https://lovable.dev/",
-    votes: 84,
-    userId: "user2",
-    username: "janesmith",
-    createdAt: new Date(Date.now() - 8 * 3600000).toISOString(),
-    comments: [],
-    tags: ["development", "ai"]
-  },
-  {
-    id: "3",
-    title: "TypeScript Documentation",
-    url: "https://www.typescriptlang.org/docs/",
-    votes: 67,
-    userId: "user3",
-    username: "techguy",
-    createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-    comments: [],
-    tags: ["development", "documentation"]
-  },
-  {
-    id: "4",
-    title: "React - A JavaScript library for building user interfaces",
-    url: "https://reactjs.org/",
-    votes: 92,
-    userId: "user1",
-    username: "johnsmith",
-    createdAt: new Date(Date.now() - 48 * 3600000).toISOString(),
-    comments: [],
-    tags: ["development", "javascript"]
-  },
-  {
-    id: "5",
-    title: "Tailwind CSS - Rapidly build modern websites",
-    url: "https://tailwindcss.com/",
-    votes: 75,
-    userId: "user3",
-    username: "techguy",
-    createdAt: new Date(Date.now() - 72 * 3600000).toISOString(),
-    comments: [],
-    tags: ["css", "design"]
-  }
-];
-
-// Mock local storage service
-const STORAGE_KEY = "linkvault_data";
-
-// Load links from localStorage if available
-const loadLinks = (): Link[] => {
-  const storedData = localStorage.getItem(STORAGE_KEY);
-  return storedData ? JSON.parse(storedData) : initialLinks;
-};
-
-// Save links to localStorage
-const saveLinks = (links: Link[]): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(links));
-};
+import { supabase } from "@/integrations/supabase/client";
+import { Link, Comment } from "@/types";
 
 // Get all links
-export const getLinks = (): Link[] => {
-  return loadLinks();
+export const getLinks = async (): Promise<Link[]> => {
+  try {
+    const { data: links, error } = await supabase
+      .from('links')
+      .select(`
+        id, 
+        title, 
+        url, 
+        votes, 
+        user_id,
+        created_at
+      `);
+    
+    if (error) {
+      console.error('Error fetching links:', error);
+      return [];
+    }
+
+    if (!links) {
+      return [];
+    }
+
+    // Get usernames for each link
+    const linksWithUsernames = await Promise.all(
+      links.map(async (link) => {
+        // Get username
+        const { data: usernameData } = await supabase
+          .rpc('get_username', { user_id: link.user_id });
+        
+        // Get comments
+        const { data: comments } = await supabase
+          .from('comments')
+          .select(`
+            id, 
+            link_id, 
+            user_id, 
+            text, 
+            created_at
+          `)
+          .eq('link_id', link.id);
+          
+        // Get comment usernames
+        const commentsWithUsernames = await Promise.all(
+          (comments || []).map(async (comment) => {
+            const { data: commentUsername } = await supabase
+              .rpc('get_username', { user_id: comment.user_id });
+            
+            return {
+              id: comment.id,
+              linkId: comment.link_id,
+              userId: comment.user_id,
+              username: commentUsername || 'anonymous',
+              text: comment.text,
+              createdAt: comment.created_at
+            };
+          })
+        );
+
+        // Get tags
+        const { data: linkWithTags } = await supabase
+          .from('links')
+          .select('tags')
+          .eq('id', link.id)
+          .single();
+          
+        return {
+          id: link.id,
+          title: link.title,
+          url: link.url,
+          votes: link.votes,
+          userId: link.user_id,
+          username: usernameData || 'anonymous',
+          createdAt: link.created_at,
+          comments: commentsWithUsernames,
+          tags: linkWithTags?.tags || []
+        };
+      })
+    );
+
+    return linksWithUsernames;
+  } catch (error) {
+    console.error('Error in getLinks:', error);
+    return [];
+  }
 };
 
 // Get links filtered and sorted
-export const getFilteredLinks = (searchTerm: string = "", tag: string = "", sortBy: string = "votes"): Link[] => {
-  let links = loadLinks();
-  
-  // Apply filters
-  if (searchTerm) {
-    const term = searchTerm.toLowerCase();
-    links = links.filter(link => 
-      link.title.toLowerCase().includes(term) || 
-      link.url.toLowerCase().includes(term) ||
-      link.tags.some(t => t.toLowerCase().includes(term))
-    );
-  }
-  
-  if (tag) {
-    links = links.filter(link => link.tags.includes(tag));
-  }
-  
-  // Apply sorting
-  links = [...links].sort((a, b) => {
-    if (sortBy === "votes") {
-      return b.votes - a.votes;
-    } else if (sortBy === "newest") {
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+export const getFilteredLinks = async (
+  searchTerm: string = "", 
+  tag: string = "", 
+  sortBy: string = "votes"
+): Promise<Link[]> => {
+  try {
+    let query = supabase
+      .from('links')
+      .select(`
+        id, 
+        title, 
+        url, 
+        votes, 
+        user_id,
+        created_at,
+        tags
+      `);
+    
+    // Apply search filter if provided
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      query = query.or(`title.ilike.%${term}%,url.ilike.%${term}%`);
     }
-    return 0;
-  });
-  
-  return links;
+    
+    // Apply tag filter if provided
+    if (tag) {
+      query = query.contains('tags', [tag]);
+    }
+    
+    // Apply sorting
+    if (sortBy === "votes") {
+      query = query.order('votes', { ascending: false });
+    } else if (sortBy === "newest") {
+      query = query.order('created_at', { ascending: false });
+    }
+    
+    const { data: links, error } = await query;
+    
+    if (error) {
+      console.error('Error fetching filtered links:', error);
+      return [];
+    }
+
+    if (!links) {
+      return [];
+    }
+
+    // Get usernames and comments for each link
+    const linksWithUsernames = await Promise.all(
+      links.map(async (link) => {
+        // Get username
+        const { data: usernameData } = await supabase
+          .rpc('get_username', { user_id: link.user_id });
+        
+        // Get comments
+        const { data: comments } = await supabase
+          .from('comments')
+          .select(`
+            id, 
+            link_id, 
+            user_id, 
+            text, 
+            created_at
+          `)
+          .eq('link_id', link.id);
+          
+        // Get comment usernames
+        const commentsWithUsernames = await Promise.all(
+          (comments || []).map(async (comment) => {
+            const { data: commentUsername } = await supabase
+              .rpc('get_username', { user_id: comment.user_id });
+            
+            return {
+              id: comment.id,
+              linkId: comment.link_id,
+              userId: comment.user_id,
+              username: commentUsername || 'anonymous',
+              text: comment.text,
+              createdAt: comment.created_at
+            };
+          })
+        );
+          
+        return {
+          id: link.id,
+          title: link.title,
+          url: link.url,
+          votes: link.votes,
+          userId: link.user_id,
+          username: usernameData || 'anonymous',
+          createdAt: link.created_at,
+          comments: commentsWithUsernames,
+          tags: link.tags || []
+        };
+      })
+    );
+
+    return linksWithUsernames;
+  } catch (error) {
+    console.error('Error in getFilteredLinks:', error);
+    return [];
+  }
 };
 
 // Get a single link by ID
-export const getLinkById = (id: string): Link | undefined => {
-  const links = loadLinks();
-  return links.find(link => link.id === id);
+export const getLinkById = async (id: string): Promise<Link | undefined> => {
+  try {
+    const { data: link, error } = await supabase
+      .from('links')
+      .select(`
+        id, 
+        title, 
+        url, 
+        votes, 
+        user_id,
+        created_at,
+        tags
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching link:', error);
+      return undefined;
+    }
+
+    if (!link) {
+      return undefined;
+    }
+
+    // Get username
+    const { data: usernameData } = await supabase
+      .rpc('get_username', { user_id: link.user_id });
+    
+    // Get comments
+    const { data: comments } = await supabase
+      .from('comments')
+      .select(`
+        id, 
+        link_id, 
+        user_id, 
+        text, 
+        created_at
+      `)
+      .eq('link_id', link.id);
+      
+    // Get comment usernames
+    const commentsWithUsernames = await Promise.all(
+      (comments || []).map(async (comment) => {
+        const { data: commentUsername } = await supabase
+          .rpc('get_username', { user_id: comment.user_id });
+        
+        return {
+          id: comment.id,
+          linkId: comment.link_id,
+          userId: comment.user_id,
+          username: commentUsername || 'anonymous',
+          text: comment.text,
+          createdAt: comment.created_at
+        };
+      })
+    );
+      
+    return {
+      id: link.id,
+      title: link.title,
+      url: link.url,
+      votes: link.votes,
+      userId: link.user_id,
+      username: usernameData || 'anonymous',
+      createdAt: link.created_at,
+      comments: commentsWithUsernames,
+      tags: link.tags || []
+    };
+  } catch (error) {
+    console.error('Error in getLinkById:', error);
+    return undefined;
+  }
 };
 
 // Add a new link
-export const addLink = (link: Omit<Link, "id" | "votes" | "createdAt" | "comments">): Link => {
-  const links = loadLinks();
-  const newLink: Link = {
-    ...link,
-    id: Date.now().toString(),
-    votes: 1, // Start with one upvote (the poster's)
-    createdAt: new Date().toISOString(),
-    comments: []
-  };
-  
-  const updatedLinks = [newLink, ...links];
-  saveLinks(updatedLinks);
-  
-  return newLink;
+export const addLink = async (
+  link: Omit<Link, "id" | "votes" | "createdAt" | "comments" | "userId" | "username">
+): Promise<Link | undefined> => {
+  try {
+    const user = supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error("User must be logged in to add a link");
+    }
+    
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData || !userData.user) {
+      throw new Error("User must be logged in to add a link");
+    }
+    
+    const { data: insertedLink, error } = await supabase
+      .from('links')
+      .insert({
+        title: link.title,
+        url: link.url,
+        user_id: userData.user.id,
+        tags: link.tags
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding link:', error);
+      return undefined;
+    }
+
+    if (!insertedLink) {
+      return undefined;
+    }
+
+    // Get username
+    const { data: usernameData } = await supabase
+      .rpc('get_username', { user_id: insertedLink.user_id });
+    
+    return {
+      id: insertedLink.id,
+      title: insertedLink.title,
+      url: insertedLink.url,
+      votes: insertedLink.votes,
+      userId: insertedLink.user_id,
+      username: usernameData || 'anonymous',
+      createdAt: insertedLink.created_at,
+      comments: [],
+      tags: insertedLink.tags || []
+    };
+  } catch (error) {
+    console.error('Error in addLink:', error);
+    return undefined;
+  }
 };
 
 // Update vote for a link
-export const updateVote = (id: string, increment: boolean): Link | undefined => {
-  const links = loadLinks();
-  const updatedLinks = links.map(link => {
-    if (link.id === id) {
-      return { 
-        ...link, 
-        votes: increment ? link.votes + 1 : Math.max(0, link.votes - 1)
-      };
+export const updateVote = async (id: string, increment: boolean): Promise<Link | undefined> => {
+  try {
+    const { data: updatedLink, error } = await supabase
+      .rpc('handle_vote', { 
+        link_id: id, 
+        vote_increment: increment ? 1 : -1 
+      });
+    
+    if (error) {
+      console.error('Error updating vote:', error);
+      return undefined;
     }
-    return link;
-  });
-  
-  saveLinks(updatedLinks);
-  return updatedLinks.find(link => link.id === id);
+
+    if (!updatedLink) {
+      return undefined;
+    }
+
+    // We need to get the full link with comments and username
+    return await getLinkById(id);
+  } catch (error) {
+    console.error('Error in updateVote:', error);
+    return undefined;
+  }
 };
 
 // Add comment to a link
-export const addComment = (linkId: string, comment: Omit<Comment, "id" | "createdAt" | "linkId">): Comment | undefined => {
-  const links = loadLinks();
-  let newComment: Comment | undefined;
-  
-  const updatedLinks = links.map(link => {
-    if (link.id === linkId) {
-      newComment = {
-        ...comment,
-        id: `c${Date.now()}`,
-        linkId,
-        createdAt: new Date().toISOString()
-      };
-      
-      return {
-        ...link,
-        comments: [...link.comments, newComment]
-      };
+export const addComment = async (
+  linkId: string, 
+  comment: Omit<Comment, "id" | "createdAt" | "linkId" | "userId" | "username">
+): Promise<Comment | undefined> => {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    
+    if (!userData || !userData.user) {
+      throw new Error("User must be logged in to add a comment");
     }
-    return link;
-  });
-  
-  saveLinks(updatedLinks);
-  return newComment;
+    
+    const { data: insertedComment, error } = await supabase
+      .from('comments')
+      .insert({
+        link_id: linkId,
+        user_id: userData.user.id,
+        text: comment.text
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error adding comment:', error);
+      return undefined;
+    }
+
+    if (!insertedComment) {
+      return undefined;
+    }
+
+    // Get username
+    const { data: usernameData } = await supabase
+      .rpc('get_username', { user_id: insertedComment.user_id });
+    
+    return {
+      id: insertedComment.id,
+      linkId: insertedComment.link_id,
+      userId: insertedComment.user_id,
+      username: usernameData || 'anonymous',
+      text: insertedComment.text,
+      createdAt: insertedComment.created_at
+    };
+  } catch (error) {
+    console.error('Error in addComment:', error);
+    return undefined;
+  }
 };
 
 // Delete a link
-export const deleteLink = (id: string): boolean => {
-  const links = loadLinks();
-  const updatedLinks = links.filter(link => link.id !== id);
-  
-  if (updatedLinks.length < links.length) {
-    saveLinks(updatedLinks);
+export const deleteLink = async (id: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('links')
+      .delete()
+      .eq('id', id);
+    
+    if (error) {
+      console.error('Error deleting link:', error);
+      return false;
+    }
+    
     return true;
+  } catch (error) {
+    console.error('Error in deleteLink:', error);
+    return false;
   }
-  
-  return false;
 };
 
 // Get all unique tags
-export const getAllTags = (): string[] => {
-  const links = loadLinks();
-  const tagsSet = new Set<string>();
-  
-  links.forEach(link => {
-    link.tags.forEach(tag => tagsSet.add(tag));
-  });
-  
-  return Array.from(tagsSet).sort();
+export const getAllTags = async (): Promise<string[]> => {
+  try {
+    const { data: links, error } = await supabase
+      .from('links')
+      .select('tags');
+    
+    if (error) {
+      console.error('Error fetching tags:', error);
+      return [];
+    }
+
+    if (!links) {
+      return [];
+    }
+
+    const tagsSet = new Set<string>();
+    
+    links.forEach(link => {
+      (link.tags || []).forEach(tag => tagsSet.add(tag));
+    });
+    
+    return Array.from(tagsSet).sort();
+  } catch (error) {
+    console.error('Error in getAllTags:', error);
+    return [];
+  }
+};
+
+// Update a link
+export const updateLink = async (
+  id: string, 
+  link: Partial<Omit<Link, "id" | "userId" | "username" | "createdAt" | "comments">>
+): Promise<Link | undefined> => {
+  try {
+    const { data: updatedLink, error } = await supabase
+      .from('links')
+      .update({
+        title: link.title,
+        url: link.url,
+        tags: link.tags
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error updating link:', error);
+      return undefined;
+    }
+
+    if (!updatedLink) {
+      return undefined;
+    }
+
+    // We need to get the full link with comments and username
+    return await getLinkById(id);
+  } catch (error) {
+    console.error('Error in updateLink:', error);
+    return undefined;
+  }
 };

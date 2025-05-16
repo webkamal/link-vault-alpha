@@ -27,8 +27,5 @@ export interface User {
   username: string;
 }
 
-// Mock current user for demo purposes
-export const CURRENT_USER: User = {
-  id: "current-user",
-  username: "currentuser"
-};
+// Auth states for the application
+export type AuthState = 'SIGNED_OUT' | 'SIGNED_IN' | 'LOADING';
