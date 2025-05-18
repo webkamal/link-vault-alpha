@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User, Provider } from "@supabase/supabase-js";
@@ -77,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('username, avatar_url')
+        .select('username')
         .eq('id', userId)
         .single();
       
@@ -224,12 +223,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       // Update profile in the profiles table
+      const updateData: any = {};
+      if (data.username) updateData.username = data.username;
+      if (data.avatar_url) updateData.avatar_url = data.avatar_url;
+      
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          ...(data.username && { username: data.username }),
-          ...(data.avatar_url && { avatar_url: data.avatar_url })
-        })
+        .update(updateData)
         .eq('id', user.id);
       
       if (profileError) {
