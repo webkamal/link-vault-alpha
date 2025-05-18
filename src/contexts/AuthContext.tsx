@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Session, User } from "@supabase/supabase-js";
+import { Session, User, Provider } from "@supabase/supabase-js";
 import { AuthState } from "@/types";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,7 +12,10 @@ interface AuthContextType {
   authState: AuthState;
   signUp: (email: string, password: string, username: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signInWithSocial: (provider: Provider) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<{ error: any }>;
+  updateProfile: (data: { username?: string, avatar_url?: string }) => Promise<{ error: any }>;
   username: string | null;
 }
 
@@ -22,7 +25,10 @@ const AuthContext = createContext<AuthContextType>({
   authState: 'LOADING',
   signUp: async () => ({ error: new Error("Not implemented") }),
   signIn: async () => ({ error: new Error("Not implemented") }),
+  signInWithSocial: async () => {},
   signOut: async () => {},
+  resetPassword: async () => ({ error: new Error("Not implemented") }),
+  updateProfile: async () => ({ error: new Error("Not implemented") }),
   username: null,
 });
 
@@ -71,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, avatar_url')
         .eq('id', userId)
         .single();
       
@@ -151,6 +157,100 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const signInWithSocial = async (provider: Provider) => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/`
+        }
+      });
+      
+      if (error) {
+        toast.error("Login failed", {
+          description: error.message,
+        });
+      }
+    } catch (error: any) {
+      toast.error("Social login failed", {
+        description: error.message,
+      });
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) {
+        toast.error("Password reset failed", {
+          description: error.message,
+        });
+        return { error };
+      }
+      
+      toast.success("Password reset email sent", {
+        description: "Please check your inbox for further instructions.",
+      });
+      
+      return { error: null };
+    } catch (error: any) {
+      toast.error("Password reset failed", {
+        description: error.message,
+      });
+      return { error };
+    }
+  };
+
+  const updateProfile = async (data: { username?: string, avatar_url?: string }) => {
+    try {
+      if (!user) {
+        throw new Error("No user logged in");
+      }
+      
+      // Update user metadata if username is provided
+      if (data.username) {
+        const { error: metadataError } = await supabase.auth.updateUser({
+          data: {
+            username: data.username,
+          }
+        });
+        
+        if (metadataError) {
+          throw metadataError;
+        }
+      }
+      
+      // Update profile in the profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          ...(data.username && { username: data.username }),
+          ...(data.avatar_url && { avatar_url: data.avatar_url })
+        })
+        .eq('id', user.id);
+      
+      if (profileError) {
+        throw profileError;
+      }
+      
+      // Update local state if username is changed
+      if (data.username) {
+        setUsername(data.username);
+      }
+      
+      toast.success("Profile updated successfully");
+      return { error: null };
+    } catch (error: any) {
+      toast.error("Profile update failed", {
+        description: error.message,
+      });
+      return { error };
+    }
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     toast.info("You have been logged out");
@@ -165,7 +265,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         authState,
         signUp,
         signIn,
+        signInWithSocial,
         signOut,
+        resetPassword,
+        updateProfile,
         username,
       }}
     >
