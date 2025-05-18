@@ -90,10 +90,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       console.log("Profile data:", data);
-      setUsername(data.username);
+      
+      // Check if data exists and has username property
+      if (data && 'username' in data) {
+        setUsername(data.username);
+      }
       
       // Update user metadata if avatar_url exists in profiles but not in user metadata
-      if (data.avatar_url && (!user?.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url)) {
+      if (data && 
+          'avatar_url' in data && 
+          data.avatar_url && 
+          (!user?.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url)) {
         console.log("Updating user metadata with avatar_url:", data.avatar_url);
         await supabase.auth.updateUser({
           data: {
@@ -253,14 +260,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.avatar_url) updateData.avatar_url = data.avatar_url;
       
       console.log("Updating profile table with:", updateData);
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update(updateData)
-        .eq('id', user.id);
       
-      if (profileError) {
-        console.error("Error updating profile:", profileError);
-        throw profileError;
+      // First check if avatar_url column exists
+      try {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update(updateData)
+          .eq('id', user.id);
+        
+        if (profileError) {
+          console.error("Error updating profile:", profileError);
+          
+          // If error mentions avatar_url doesn't exist, try updating just the username
+          if (profileError.message?.includes('avatar_url') && data.username) {
+            const { error: usernameError } = await supabase
+              .from('profiles')
+              .update({ username: data.username })
+              .eq('id', user.id);
+              
+            if (usernameError) {
+              throw usernameError;
+            }
+          } else {
+            throw profileError;
+          }
+        }
+      } catch (error) {
+        console.error("Profile update error:", error);
+        throw error;
       }
       
       // Update local state if username is changed

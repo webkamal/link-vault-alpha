@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
@@ -43,7 +42,10 @@ const ProfilePage = () => {
 
     setIsUpdating(true);
     try {
-      await updateProfile({ username: newUsername.trim() });
+      const { error } = await updateProfile({ username: newUsername.trim() });
+      if (error) {
+        throw error;
+      }
       toast.success("Username updated successfully");
     } catch (error: any) {
       toast.error("Error updating username", { 
@@ -67,6 +69,8 @@ const ProfilePage = () => {
       const fileName = `${user.id}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
       const filePath = `${fileName}`;
 
+      console.log("Uploading avatar:", filePath);
+
       // Upload the file to Supabase storage
       const { error: uploadError } = await supabase.storage
         .from('avatars')
@@ -76,6 +80,7 @@ const ProfilePage = () => {
         });
 
       if (uploadError) {
+        console.error("Upload error:", uploadError);
         throw uploadError;
       }
 
@@ -87,7 +92,13 @@ const ProfilePage = () => {
       console.log("Avatar uploaded successfully, public URL:", publicUrl);
 
       // Update user profile with new avatar URL
-      await updateProfile({ avatar_url: publicUrl });
+      const { error } = await updateProfile({ avatar_url: publicUrl });
+      
+      if (error) {
+        console.error("Error updating profile with avatar:", error);
+        throw error;
+      }
+      
       setAvatarUrl(publicUrl);
       
       toast.success("Profile picture updated successfully");
