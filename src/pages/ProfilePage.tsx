@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, Upload } from "lucide-react";
 import { Link, Navigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const ProfilePage = () => {
   const { user, username, updateProfile, authState } = useAuth();
@@ -43,6 +44,11 @@ const ProfilePage = () => {
     setIsUpdating(true);
     try {
       await updateProfile({ username: newUsername.trim() });
+      toast.success("Username updated successfully");
+    } catch (error: any) {
+      toast.error("Error updating username", { 
+        description: error.message 
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -58,12 +64,16 @@ const ProfilePage = () => {
 
       const file = e.target.files[0];
       const fileExt = file.name.split('.').pop();
-      const filePath = `avatars/${user.id}-${Math.random()}.${fileExt}`;
+      const fileName = `${user.id}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `${fileName}`;
 
       // Upload the file to Supabase storage
-      const { error: uploadError, data } = await supabase.storage
+      const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, { 
+          upsert: true,
+          contentType: file.type 
+        });
 
       if (uploadError) {
         throw uploadError;
@@ -74,12 +84,19 @@ const ProfilePage = () => {
         .from('avatars')
         .getPublicUrl(filePath);
 
+      console.log("Avatar uploaded successfully, public URL:", publicUrl);
+
       // Update user profile with new avatar URL
       await updateProfile({ avatar_url: publicUrl });
       setAvatarUrl(publicUrl);
+      
+      toast.success("Profile picture updated successfully");
 
     } catch (error: any) {
-      console.error('Error uploading avatar:', error.message);
+      console.error('Error uploading avatar:', error);
+      toast.error("Error uploading avatar", { 
+        description: error.message || "Failed to upload image" 
+      });
     } finally {
       setUploading(false);
     }

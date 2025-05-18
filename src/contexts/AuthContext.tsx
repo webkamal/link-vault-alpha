@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User, Provider } from "@supabase/supabase-js";
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up the auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, currentSession) => {
+        console.log("Auth state changed:", event, currentSession?.user?.id);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         setAuthState(currentSession ? 'SIGNED_IN' : 'SIGNED_OUT');
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Then check for existing session
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("Got existing session:", currentSession?.user?.id);
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       setAuthState(currentSession ? 'SIGNED_IN' : 'SIGNED_OUT');
@@ -74,9 +77,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log("Fetching profile for user:", userId);
       const { data, error } = await supabase
         .from('profiles')
-        .select('username')
+        .select('username, avatar_url')
         .eq('id', userId)
         .single();
       
@@ -85,7 +89,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
+      console.log("Profile data:", data);
       setUsername(data.username);
+      
+      // Update user metadata if avatar_url exists in profiles but not in user metadata
+      if (data.avatar_url && (!user?.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url)) {
+        console.log("Updating user metadata with avatar_url:", data.avatar_url);
+        await supabase.auth.updateUser({
+          data: {
+            avatar_url: data.avatar_url
+          }
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     }
@@ -209,30 +224,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error("No user logged in");
       }
       
-      // Update user metadata if username is provided
-      if (data.username) {
+      console.log("Updating profile with:", data);
+      
+      // Update user metadata if avatar_url is provided
+      if (data.avatar_url) {
+        console.log("Updating user metadata with avatar_url:", data.avatar_url);
         const { error: metadataError } = await supabase.auth.updateUser({
           data: {
-            username: data.username,
+            avatar_url: data.avatar_url,
           }
         });
         
         if (metadataError) {
+          console.error("Error updating user metadata:", metadataError);
           throw metadataError;
+        }
+        
+        // Refresh user data to get updated metadata
+        const { data: authData } = await supabase.auth.getUser();
+        if (authData.user) {
+          setUser(authData.user);
         }
       }
       
       // Update profile in the profiles table
-      const updateData: any = {};
+      const updateData: Record<string, any> = {};
       if (data.username) updateData.username = data.username;
       if (data.avatar_url) updateData.avatar_url = data.avatar_url;
       
+      console.log("Updating profile table with:", updateData);
       const { error: profileError } = await supabase
         .from('profiles')
         .update(updateData)
         .eq('id', user.id);
       
       if (profileError) {
+        console.error("Error updating profile:", profileError);
         throw profileError;
       }
       
@@ -241,12 +268,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUsername(data.username);
       }
       
-      toast.success("Profile updated successfully");
+      console.log("Profile updated successfully");
       return { error: null };
     } catch (error: any) {
-      toast.error("Profile update failed", {
-        description: error.message,
-      });
+      console.error("Profile update failed:", error);
       return { error };
     }
   };

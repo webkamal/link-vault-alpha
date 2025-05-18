@@ -1,15 +1,8 @@
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
-import { LogIn, LogOut, User, Settings, UserCircle } from "lucide-react";
+import { LogIn, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AuthButtonProps {
@@ -17,7 +10,7 @@ interface AuthButtonProps {
 }
 
 export function AuthButton({ onAccountClick }: AuthButtonProps) {
-  const { user, signOut, username, authState } = useAuth();
+  const { user, authState, username } = useAuth();
 
   if (authState === 'LOADING') {
     return (
@@ -37,6 +30,7 @@ export function AuthButton({ onAccountClick }: AuthButtonProps) {
   }
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "U";
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   return (
     <Button 
@@ -46,7 +40,7 @@ export function AuthButton({ onAccountClick }: AuthButtonProps) {
       onClick={onAccountClick}
     >
       <Avatar className="h-6 w-6">
-        <AvatarImage src={user.user_metadata?.avatar_url} />
+        <AvatarImage src={avatarUrl} />
         <AvatarFallback>{userInitial}</AvatarFallback>
       </Avatar>
       <span className="hidden sm:inline">{username || "User"}</span>

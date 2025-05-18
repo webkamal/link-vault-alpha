@@ -30,6 +30,7 @@ const AccountPanel = ({ open, onOpenChange }: AccountPanelProps) => {
   }
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "U";
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   const handleSignOut = async () => {
     await signOut();
@@ -44,7 +45,7 @@ const AccountPanel = ({ open, onOpenChange }: AccountPanelProps) => {
           <div className="flex flex-col items-start pb-4 border-b">
             <div className="flex items-center gap-3 mb-2 w-full">
               <Avatar className="h-12 w-12">
-                <AvatarImage src={user.user_metadata?.avatar_url} />
+                <AvatarImage src={avatarUrl} />
                 <AvatarFallback>{userInitial}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
