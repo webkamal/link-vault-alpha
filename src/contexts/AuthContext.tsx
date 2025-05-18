@@ -93,7 +93,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Check if data exists and has username property
       if (data && 'username' in data) {
-        setUsername(data.username);
+        // Fixed: Explicitly cast to string to satisfy TypeScript
+        setUsername(data.username as string);
       }
       
       // Update user metadata if avatar_url exists in profiles but not in user metadata
