@@ -5,12 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Search, Moon, Sun, Plus } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useState } from "react";
+import { AuthButton } from "@/components/AuthButton";
 
 interface HeaderProps {
   onSearch: (term: string) => void;
+  onAccountClick: () => void;
 }
 
-const Header = ({ onSearch }: HeaderProps) => {
+const Header = ({ onSearch, onAccountClick }: HeaderProps) => {
   const { theme, toggleTheme } = useTheme();
   const [searchTerm, setSearchTerm] = useState<string>("");
   
@@ -77,6 +79,8 @@ const Header = ({ onSearch }: HeaderProps) => {
                 <Plus className="h-4 w-4" />
               </Link>
             </Button>
+            
+            <AuthButton onAccountClick={onAccountClick} />
           </div>
         </div>
       </div>

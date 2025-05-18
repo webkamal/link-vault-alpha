@@ -18,6 +18,7 @@ import NotFound from "@/pages/NotFound";
 import { useState } from "react";
 import { TopicSidebar } from "@/components/TopicSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import AccountPanel from "@/components/AccountPanel";
 
 // Create a new QueryClient instance
 const queryClient = new QueryClient({
@@ -29,19 +30,42 @@ const queryClient = new QueryClient({
   },
 });
 
+// Main App component that wraps everything with providers
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-right" closeButton />
+          <AppRouting />
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+};
+
 // Separate the content from the QueryClientProvider to avoid React hook issues
 const AppRouting = () => {
   const [searchTerm, setSearchTerm] = useState("");
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false);
   
   const handleSearch = (term: string) => {
     setSearchTerm(term);
+  };
+  
+  const toggleAccountPanel = () => {
+    setAccountPanelOpen(!accountPanelOpen);
   };
   
   return (
     <BrowserRouter>
       <AuthProvider>
         <div className="min-h-screen flex flex-col">
-          <Header onSearch={handleSearch} />
+          <Header 
+            onSearch={handleSearch} 
+            onAccountClick={toggleAccountPanel} 
+          />
           <div className="flex-1 flex">
             <SidebarProvider>
               <div className="flex min-h-[calc(100vh-4rem)] w-full">
@@ -64,6 +88,7 @@ const AppRouting = () => {
               </div>
             </SidebarProvider>
           </div>
+          <AccountPanel open={accountPanelOpen} onOpenChange={setAccountPanelOpen} />
           <footer className="py-6 border-t">
             <div className="container max-w-7xl mx-auto text-center text-sm text-muted-foreground">
               &copy; {new Date().getFullYear()} LinkVault - Save and organize your links
@@ -72,21 +97,6 @@ const AppRouting = () => {
         </div>
       </AuthProvider>
     </BrowserRouter>
-  );
-};
-
-// Main App component that wraps everything with providers
-const App = () => {
-  return (
-    <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="top-right" closeButton />
-        <QueryClientProvider client={queryClient}>
-          <AppRouting />
-        </QueryClientProvider>
-      </TooltipProvider>
-    </ThemeProvider>
   );
 };
 
