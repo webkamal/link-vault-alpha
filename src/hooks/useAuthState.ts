@@ -27,6 +27,8 @@ export function useAuthState() {
           setTimeout(() => {
             fetchUserProfile(currentSession.user.id);
           }, 0);
+        } else {
+          setUsername(null);
         }
       }
     );
@@ -56,7 +58,7 @@ export function useAuthState() {
         .from('profiles')
         .select('username, avatar_url')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       
       if (error) {
         console.error('Error fetching profile:', error);
@@ -66,14 +68,12 @@ export function useAuthState() {
       console.log("Profile data:", data);
       
       // Check if data exists and has username property
-      if (data && 'username' in data) {
-        // Fixed: Explicitly cast to string to satisfy TypeScript
-        setUsername(data.username as string);
+      if (data && data.username) {
+        setUsername(data.username);
       }
       
       // Update user metadata if avatar_url exists in profiles but not in user metadata
       if (data && 
-          'avatar_url' in data && 
           data.avatar_url && 
           (!user?.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url)) {
         console.log("Updating user metadata with avatar_url:", data.avatar_url);

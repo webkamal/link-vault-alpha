@@ -180,32 +180,45 @@ export const authService = {
       
       console.log("Updating profile table with:", updateData);
       
-      try {
-        const { error: profileError } = await supabase
+      // First check if the profile exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error("Error checking profile:", checkError);
+        throw checkError;
+      }
+      
+      let profileUpdateError = null;
+      
+      if (existingProfile) {
+        // Update existing profile
+        console.log("Updating existing profile");
+        const { error } = await supabase
           .from('profiles')
           .update(updateData)
           .eq('id', user.id);
         
-        if (profileError) {
-          console.error("Error updating profile:", profileError);
-          
-          // If error mentions avatar_url doesn't exist, try updating just the username
-          if (profileError.message?.includes('avatar_url') && data.username) {
-            const { error: usernameError } = await supabase
-              .from('profiles')
-              .update({ username: data.username })
-              .eq('id', user.id);
-              
-            if (usernameError) {
-              throw usernameError;
-            }
-          } else {
-            throw profileError;
-          }
-        }
-      } catch (error) {
-        console.error("Profile update error:", error);
-        throw error;
+        profileUpdateError = error;
+      } else {
+        // Insert new profile
+        console.log("Creating new profile");
+        const { error } = await supabase
+          .from('profiles')
+          .insert({
+            id: user.id,
+            ...updateData,
+          });
+        
+        profileUpdateError = error;
+      }
+      
+      if (profileUpdateError) {
+        console.error("Profile update error:", profileUpdateError);
+        throw profileUpdateError;
       }
       
       console.log("Profile updated successfully");
