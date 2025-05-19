@@ -183,7 +183,7 @@ export const authService = {
       // First check if the profile exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
-        .select('id')
+        .select('id, username')
         .eq('id', user.id)
         .maybeSingle();
       
@@ -206,6 +206,15 @@ export const authService = {
       } else {
         // Insert new profile
         console.log("Creating new profile");
+        
+        // Make sure we have a username for the new profile
+        if (!updateData.username) {
+          // If no username provided in the update data, use one from user metadata or a default
+          updateData.username = user.user_metadata?.username || 
+                               user.email?.split('@')[0] || 
+                               `user_${user.id.substring(0, 8)}`;
+        }
+        
         const { error } = await supabase
           .from('profiles')
           .insert({
