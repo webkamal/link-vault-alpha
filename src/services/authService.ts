@@ -219,7 +219,8 @@ export const authService = {
           .from('profiles')
           .insert({
             id: user.id,
-            ...updateData,
+            username: updateData.username,
+            ...(updateData.avatar_url ? { avatar_url: updateData.avatar_url } : {})
           });
         
         profileUpdateError = error;
