@@ -72,16 +72,33 @@ export function useAuthState() {
         setUsername(data.username);
       }
       
-      // Update user metadata if avatar_url exists in profiles but not in user metadata
-      if (data && 
-          data.avatar_url && 
-          (!user?.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url)) {
-        console.log("Updating user metadata with avatar_url:", data.avatar_url);
-        await supabase.auth.updateUser({
-          data: {
-            avatar_url: data.avatar_url
+      // Update user state with avatar_url in metadata if it exists in profiles
+      if (data && data.avatar_url && user) {
+        // Create a deep copy of the user object to modify it
+        const updatedUser = { 
+          ...user,
+          user_metadata: { 
+            ...(user.user_metadata || {}), 
+            avatar_url: data.avatar_url 
+          },
+          raw_user_meta_data: { 
+            ...(user.raw_user_meta_data || {}), 
+            avatar_url: data.avatar_url 
           }
-        });
+        };
+        
+        // Update the local user state
+        setUser(updatedUser);
+        
+        // Update user metadata if avatar_url exists in profiles but not in user metadata or is different
+        if (!user.user_metadata?.avatar_url || user.user_metadata.avatar_url !== data.avatar_url) {
+          console.log("Updating user metadata with avatar_url:", data.avatar_url);
+          await supabase.auth.updateUser({
+            data: {
+              avatar_url: data.avatar_url
+            }
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching profile:', error);

@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,13 +13,20 @@ import { Link, Navigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const ProfilePage = () => {
-  const { user, username, updateProfile, authState } = useAuth();
+  const { user, username, updateProfile, authState, fetchUserProfile } = useAuth();
   const [newUsername, setNewUsername] = useState(username || "");
   const [uploading, setUploading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
-    user?.user_metadata?.avatar_url || null
+    user?.raw_user_meta_data?.avatar_url || user?.user_metadata?.avatar_url || null
   );
+
+  // Update local state when user changes
+  useEffect(() => {
+    if (user) {
+      setAvatarUrl(user.raw_user_meta_data?.avatar_url || user.user_metadata?.avatar_url || null);
+    }
+  }, [user]);
 
   // If not logged in, redirect to login page
   if (authState === 'SIGNED_OUT') {
@@ -100,6 +108,11 @@ const ProfilePage = () => {
       }
       
       setAvatarUrl(publicUrl);
+      
+      // Refresh user profile to ensure the avatar is updated
+      if (fetchUserProfile && user.id) {
+        await fetchUserProfile(user.id);
+      }
       
       toast.success("Profile picture updated successfully");
 

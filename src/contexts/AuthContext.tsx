@@ -17,6 +17,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error: any }>;
   updateProfile: (data: { username?: string, avatar_url?: string }) => Promise<{ error: any }>;
   username: string | null;
+  fetchUserProfile?: (userId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,11 +31,12 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => ({ error: new Error("Not implemented") }),
   updateProfile: async () => ({ error: new Error("Not implemented") }),
   username: null,
+  fetchUserProfile: undefined,
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
-  const { session, user, authState, username, setUsername } = useAuthState();
+  const { session, user, authState, username, setUsername, fetchUserProfile } = useAuthState();
 
   const signUp = async (email: string, password: string, username: string) => {
     const result = await authService.signUp(email, password, username);
@@ -77,6 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUsername(data.username);
     }
     
+    // Refresh profile data to update avatar
+    if (!result.error && user.id) {
+      setTimeout(() => {
+        fetchUserProfile(user.id);
+      }, 300); // Small delay to ensure Supabase has updated
+    }
+    
     return result;
   };
 
@@ -93,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         updateProfile,
         username,
+        fetchUserProfile,
       }}
     >
       {children}

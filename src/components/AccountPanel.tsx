@@ -1,4 +1,3 @@
-
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
@@ -30,7 +29,8 @@ const AccountPanel = ({ open, onOpenChange }: AccountPanelProps) => {
   }
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "U";
-  const avatarUrl = user.user_metadata?.avatar_url;
+  // Use raw_user_meta_data first, then fallback to user_metadata for avatar_url
+  const avatarUrl = user.raw_user_meta_data?.avatar_url || user.user_metadata?.avatar_url;
 
   const handleSignOut = async () => {
     await signOut();
