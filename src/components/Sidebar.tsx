@@ -7,10 +7,12 @@ import { getFilteredLinks } from "@/services/linksService";
 import { Link } from "@/types";
 import { Megaphone, LinkIcon } from "lucide-react";
 import { formatRelativeTime, formatUrl } from "@/utils/formatters";
+import { supabase } from "@/integrations/supabase/client";
 
 export function Sidebar() {
   const [recentLinks, setRecentLinks] = useState<Link[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [adContent, setAdContent] = useState<string>("");
 
   useEffect(() => {
     const fetchRecentLinks = async () => {
@@ -26,6 +28,32 @@ export function Sidebar() {
     };
 
     fetchRecentLinks();
+  }, []);
+
+  // Fetch advertisement content from admin_settings
+  useEffect(() => {
+    const fetchAdContent = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('admin_settings')
+          .select('value')
+          .eq('key', 'advertisement_content')
+          .single();
+          
+        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+          console.error("Error fetching ad content:", error);
+          return;
+        }
+        
+        if (data?.value) {
+          setAdContent(data.value);
+        }
+      } catch (error) {
+        console.error("Error fetching ad content:", error);
+      }
+    };
+    
+    fetchAdContent();
   }, []);
 
   return (
@@ -86,12 +114,16 @@ export function Sidebar() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="bg-muted aspect-video rounded-md flex items-center justify-center text-muted-foreground">
-            <div className="text-center p-4">
-              <p className="font-medium">Advertisement Space</p>
-              <p className="text-sm">Place your ad here</p>
+          {adContent ? (
+            <div dangerouslySetInnerHTML={{ __html: adContent }} />
+          ) : (
+            <div className="bg-muted aspect-video rounded-md flex items-center justify-center text-muted-foreground">
+              <div className="text-center p-4">
+                <p className="font-medium">Advertisement Space</p>
+                <p className="text-sm">Place your ad here</p>
+              </div>
             </div>
-          </div>
+          )}
           <div className="mt-2 text-xs text-muted-foreground text-center">
             Interested in advertising? Contact us!
           </div>

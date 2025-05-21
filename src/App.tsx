@@ -19,6 +19,8 @@ import { useState } from "react";
 import { TopicSidebar } from "@/components/TopicSidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import AccountPanel from "@/components/AccountPanel";
+import AdminDashboard from "@/pages/AdminDashboard";
+import AdminEditLink from "@/pages/AdminEditLink";
 
 // Create a new QueryClient instance
 const queryClient = new QueryClient({
@@ -82,6 +84,8 @@ const AppRouting = () => {
                     <Route path="/tag/:tag" element={<HomePage />} />
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/settings" element={<SettingsPage />} />
+                    <Route path="/admin" element={<AdminDashboard />} />
+                    <Route path="/admin/edit-link/:id" element={<AdminEditLink />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </main>
