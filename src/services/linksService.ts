@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Link, Comment } from "@/types";
 
@@ -483,5 +482,54 @@ export const updateLink = async (
   } catch (error) {
     console.error('Error in updateLink:', error);
     return undefined;
+  }
+};
+
+// Get recent comments
+export const getRecentComments = async (limit = 5): Promise<Comment[]> => {
+  try {
+    const { data: comments, error } = await supabase
+      .from('comments')
+      .select(`
+        id, 
+        link_id, 
+        user_id, 
+        text, 
+        created_at
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error('Error fetching recent comments:', error);
+      return [];
+    }
+
+    if (!comments) {
+      return [];
+    }
+
+    // Get comment usernames and link titles
+    const commentsWithUsernames = await Promise.all(
+      comments.map(async (comment) => {
+        // Get username
+        const { data: username } = await supabase
+          .rpc('get_username', { user_id: comment.user_id });
+        
+        return {
+          id: comment.id,
+          linkId: comment.link_id,
+          userId: comment.user_id,
+          username: username || 'anonymous',
+          text: comment.text,
+          createdAt: comment.created_at
+        };
+      })
+    );
+
+    return commentsWithUsernames;
+  } catch (error) {
+    console.error('Error in getRecentComments:', error);
+    return [];
   }
 };
