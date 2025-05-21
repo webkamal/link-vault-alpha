@@ -2,38 +2,38 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getRecentComments } from "@/services/linksService";
-import { Comment } from "@/types";
-import { Megaphone } from "lucide-react";
-import { formatRelativeTime } from "@/utils/formatters";
-import { Link } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
+import { getFilteredLinks } from "@/services/linksService";
+import { Link } from "@/types";
+import { Megaphone, LinkIcon } from "lucide-react";
+import { formatRelativeTime, formatUrl } from "@/utils/formatters";
 
 export function Sidebar() {
-  const [comments, setComments] = useState<Comment[]>([]);
+  const [recentLinks, setRecentLinks] = useState<Link[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchRecentComments = async () => {
+    const fetchRecentLinks = async () => {
       try {
         setIsLoading(true);
-        const recentComments = await getRecentComments();
-        setComments(recentComments);
+        const links = await getFilteredLinks("", "", "newest");
+        setRecentLinks(links.slice(0, 3)); // Get only the first 3 links
       } catch (error) {
-        console.error("Error fetching recent comments:", error);
+        console.error("Error fetching recent links:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchRecentComments();
+    fetchRecentLinks();
   }, []);
 
   return (
     <div className="w-full lg:w-80 space-y-4">
-      {/* Latest Comments Section */}
+      {/* Recently Added Links Section */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-medium">Latest Comments</CardTitle>
+          <CardTitle className="text-lg font-medium">Recently Added</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {isLoading ? (
@@ -46,28 +46,32 @@ export function Sidebar() {
                 </div>
               </div>
             ))
-          ) : comments.length > 0 ? (
-            comments.map(comment => (
-              <Link 
-                key={comment.id} 
-                to={`/link/${comment.linkId}`} 
+          ) : recentLinks.length > 0 ? (
+            recentLinks.map(link => (
+              <RouterLink 
+                key={link.id} 
+                to={`/link/${link.id}`} 
                 className="flex items-start space-x-3 hover:bg-muted/50 p-2 rounded-md transition-colors"
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarFallback>{comment.username.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <LinkIcon className="h-4 w-4 text-primary" />
+                </div>
                 <div>
-                  <div className="font-medium text-sm">{comment.username}</div>
-                  <div className="text-sm text-muted-foreground line-clamp-2">{comment.text}</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {formatRelativeTime(comment.createdAt)}
+                  <div className="font-medium text-sm line-clamp-1">{link.title}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">
+                    {formatUrl(link.url)}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                    <span>by {link.username}</span>
+                    <span>•</span>
+                    <span>{formatRelativeTime(link.createdAt)}</span>
                   </div>
                 </div>
-              </Link>
+              </RouterLink>
             ))
           ) : (
             <div className="text-sm text-center text-muted-foreground py-2">
-              No comments yet
+              No links yet
             </div>
           )}
         </CardContent>
