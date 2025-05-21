@@ -30,8 +30,8 @@ export function AuthButton({ onAccountClick }: AuthButtonProps) {
   }
 
   const userInitial = username ? username.charAt(0).toUpperCase() : "U";
-  // Use raw_user_meta_data first, then fallback to user_metadata for avatar_url
-  const avatarUrl = user.raw_user_meta_data?.avatar_url || user.user_metadata?.avatar_url;
+  // Use user_metadata for avatar_url
+  const avatarUrl = user.user_metadata?.avatar_url;
 
   return (
     <Button 

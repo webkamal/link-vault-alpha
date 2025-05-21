@@ -80,10 +80,6 @@ export function useAuthState() {
           user_metadata: { 
             ...(user.user_metadata || {}), 
             avatar_url: data.avatar_url 
-          },
-          raw_user_meta_data: { 
-            ...(user.raw_user_meta_data || {}), 
-            avatar_url: data.avatar_url 
           }
         };
         

@@ -18,13 +18,13 @@ const ProfilePage = () => {
   const [uploading, setUploading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(
-    user?.raw_user_meta_data?.avatar_url || user?.user_metadata?.avatar_url || null
+    user?.user_metadata?.avatar_url || null
   );
 
   // Update local state when user changes
   useEffect(() => {
     if (user) {
-      setAvatarUrl(user.raw_user_meta_data?.avatar_url || user.user_metadata?.avatar_url || null);
+      setAvatarUrl(user.user_metadata?.avatar_url || null);
     }
   }, [user]);
 

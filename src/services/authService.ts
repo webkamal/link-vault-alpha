@@ -159,12 +159,16 @@ export const authService = {
       console.log("Updating profile with:", data);
       
       // Check if the avatars bucket exists, create it if it doesn't
-      const { data: buckets } = await supabase.storage.listBuckets();
-      if (!buckets || !buckets.find(b => b.name === 'avatars')) {
-        console.log("Creating avatars bucket");
-        await supabase.storage.createBucket('avatars', {
-          public: true
-        });
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        if (!buckets || !buckets.find(b => b.name === 'avatars')) {
+          console.log("Creating avatars bucket");
+          await supabase.storage.createBucket('avatars', {
+            public: true
+          });
+        }
+      } catch (error) {
+        console.error("Error checking/creating bucket:", error);
       }
       
       // Update user metadata if avatar_url is provided
