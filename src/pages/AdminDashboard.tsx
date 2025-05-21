@@ -2,7 +2,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link, getFilteredLinks, deleteLink } from "@/services/linksService";
+import { getFilteredLinks, deleteLink } from "@/services/linksService";
+import { Link } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,9 +38,9 @@ export default function AdminDashboard() {
         // Check if user has admin role in profiles table
         const { data, error } = await supabase
           .from('profiles')
-          .select('is_admin')
+          .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
         
         if (error) {
           console.error("Error checking admin status:", error);
@@ -90,11 +91,11 @@ export default function AdminDashboard() {
       try {
         const { data, error } = await supabase
           .from('admin_settings')
-          .select('value')
+          .select('*')
           .eq('key', 'advertisement_content')
-          .single();
+          .maybeSingle();
         
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        if (error) {
           console.error("Error fetching ad content:", error);
           return;
         }

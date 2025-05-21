@@ -9,6 +9,24 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      admin_settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string | null
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string | null
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           created_at: string
@@ -79,18 +97,21 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           id: string
+          is_admin: boolean | null
           username: string
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string
           id: string
+          is_admin?: boolean | null
           username: string
         }
         Update: {
           avatar_url?: string | null
           created_at?: string
           id?: string
+          is_admin?: boolean | null
           username?: string
         }
         Relationships: []

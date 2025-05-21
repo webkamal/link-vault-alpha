@@ -38,9 +38,9 @@ export default function AdminEditLink() {
         // Check if user has admin role in profiles table
         const { data, error } = await supabase
           .from('profiles')
-          .select('is_admin')
+          .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
         
         if (error) {
           console.error("Error checking admin status:", error);

@@ -34,13 +34,14 @@ export function Sidebar() {
   useEffect(() => {
     const fetchAdContent = async () => {
       try {
+        // Use the correct typing for Supabase query
         const { data, error } = await supabase
           .from('admin_settings')
-          .select('value')
+          .select('*')
           .eq('key', 'advertisement_content')
-          .single();
+          .maybeSingle();
           
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        if (error) {
           console.error("Error fetching ad content:", error);
           return;
         }
