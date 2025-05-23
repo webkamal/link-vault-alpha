@@ -84,3 +84,8 @@
 .glassmorphism {
   @apply backdrop-blur-sm bg-background/80 border border-border/50 shadow-sm;
 }
+
+/* Add utility classes for link title and URL truncation */
+.truncate-text {
+  @apply truncate max-w-full;
+}

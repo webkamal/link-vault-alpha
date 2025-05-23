@@ -138,11 +138,11 @@ const LinkItem = ({ link, onVoteChange, onDelete, onEdit }: LinkItemProps) => {
           </Button>
         </div>
         
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 min-w-0 overflow-hidden">
           <div className="flex flex-col">
             <div className="flex items-baseline justify-between gap-2">
-              <div className="flex items-baseline gap-2 flex-wrap flex-1">
-                <RouterLink to={`/link/${link.id}`} className="font-medium hover:text-primary hover:underline truncate">
+              <div className="flex items-baseline gap-2 flex-wrap min-w-0 max-w-full pr-2">
+                <RouterLink to={`/link/${link.id}`} className="font-medium hover:text-primary hover:underline truncate max-w-full block">
                   {link.title}
                 </RouterLink>
                 
@@ -150,14 +150,14 @@ const LinkItem = ({ link, onVoteChange, onDelete, onEdit }: LinkItemProps) => {
                   href={link.url} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="text-xs text-muted-foreground hover:text-primary hover:underline truncate"
+                  className="text-xs text-muted-foreground hover:text-primary hover:underline truncate max-w-full block"
                 >
                   ({formatUrl(link.url)})
                 </a>
               </div>
               
               {isOwner && (
-                <div className="flex">
+                <div className="flex shrink-0">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon" className="h-8 w-8">
