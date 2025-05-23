@@ -66,9 +66,9 @@ const HomePage = () => {
   return (
     <div className="container max-w-7xl mx-auto py-8">
       <div className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1">
+        <div className="flex-1 overflow-hidden">
           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-            <h1 className="text-2xl font-bold">{title}</h1>
+            <h1 className="text-2xl font-bold truncate">{title}</h1>
             
             <div className="flex items-center space-x-2">
               <span className="text-sm text-muted-foreground">Sort by:</span>
@@ -91,7 +91,7 @@ const HomePage = () => {
               ))}
             </div>
           ) : links.length > 0 ? (
-            <div>
+            <div className="space-y-3 overflow-hidden">
               {links.map(link => (
                 <LinkItem 
                   key={link.id} 
